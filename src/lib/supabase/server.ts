@@ -1,10 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./env";
+import { getSupabaseAnonKey, getSupabaseUrl } from "./env";
 
-export function createSupabaseServerClient() {
-  const cookieStore = cookies();
-  return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+// Next.js 16+ returns cookies() as a Promise in some runtimes.
+export async function createSupabaseServerClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       getAll() {
         return cookieStore.getAll();

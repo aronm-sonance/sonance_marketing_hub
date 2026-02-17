@@ -4,6 +4,15 @@ export function requiredEnv(name: string): string {
   return v;
 }
 
-export const SUPABASE_URL = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
-export const SUPABASE_ANON_KEY = requiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Use getters to avoid throwing at module-eval time during Next build.
+export function getSupabaseUrl(): string {
+  return requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
+}
+
+export function getSupabaseAnonKey(): string {
+  return requiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+}
+
+export function getSupabaseServiceRoleKey(): string | undefined {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
