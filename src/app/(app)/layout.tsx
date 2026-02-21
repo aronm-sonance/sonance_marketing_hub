@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SignOutButton from "./sign-out-button";
+import NotificationBell from "./notification-bell";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: "◉" },
@@ -76,8 +77,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="p-4 border-t border-white/10">
-          <div className="text-xs text-white/50 truncate">{profile?.full_name ?? user.email}</div>
-          <div className="text-[10px] text-white/30 capitalize">{profile?.role ?? "user"}</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-white/50 truncate">{profile?.full_name ?? user.email}</div>
+              <div className="text-[10px] text-white/30 capitalize">{profile?.role ?? "user"}</div>
+            </div>
+            <NotificationBell />
+          </div>
           <SignOutButton />
         </div>
       </aside>
@@ -89,3 +95,4 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+
