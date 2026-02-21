@@ -33,8 +33,9 @@ async function main() {
 
   // 2. Read feed
   const feed = JSON.parse(fs.readFileSync(FEED_PATH, 'utf8'));
-  const digitalAssets = feed[3] || [];
-  const productsRaw = feed[4] || [];
+  // Feed is array of 5 objects: [{header}, {attributes}, {attribute_values}, {digital_assets}, {products}]
+  const digitalAssets = feed[3]?.digital_assets || [];
+  const productsRaw = feed[4]?.products || [];
 
   console.log(`Loaded ${productsRaw.length} products and ${digitalAssets.length} assets.`);
 
@@ -147,7 +148,7 @@ async function main() {
     const relations = p['salsify:relations'] || [];
     
     relations.forEach(rel => {
-      const type = rel['salsify:relation_type'];
+      const type = rel['relation_type'] || rel['salsify:relation_type'];
       const targetId = rel['salsify:target_product_id'];
 
       if (['Accessory', 'Part', 'System Component'].includes(type) && productIds.has(targetId)) {
