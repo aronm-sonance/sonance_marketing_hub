@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createBrowserClient } from '@/lib/supabase/client';
-import { format } from 'date-fns';
+import { createBrowserClient } from '@supabase/ssr';
 
 interface SalsifyAdminUIProps {
   lastImport: any;
@@ -10,7 +9,10 @@ interface SalsifyAdminUIProps {
 }
 
 export function SalsifyAdminUI({ lastImport, brandCounts }: SalsifyAdminUIProps) {
-  const supabase = createBrowserClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -68,7 +70,7 @@ export function SalsifyAdminUI({ lastImport, brandCounts }: SalsifyAdminUIProps)
         <div className="bg-white/5 border border-white/10 p-4 rounded-md">
           <h3 className="text-sm font-medium text-white/60">Last Import</h3>
           <p className="text-xl">
-            {lastImport ? format(new Date(lastImport.created_at), 'MMM d, yyyy HH:mm') : 'Never'}
+            {lastImport ? new Date(lastImport.created_at).toLocaleString() : 'Never'}
           </p>
           {lastImport && (
             <p className="text-xs text-white/40 mt-1">

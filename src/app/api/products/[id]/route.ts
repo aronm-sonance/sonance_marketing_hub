@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/next';
+import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createSupabaseServerClient();
-  const { id } = params;
+  const { id } = await params;
 
   const { data, error } = await supabase
     .from('salsify_products')

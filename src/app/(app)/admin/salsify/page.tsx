@@ -1,9 +1,11 @@
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { redirect } from "next/navigation";
 import { SalsifyAdminUI } from "./ui";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function SalsifyAdminPage() {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  if (!admin.ok) redirect("/");
   
   const supabase = await createSupabaseServerClient();
   
