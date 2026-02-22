@@ -116,15 +116,26 @@ export default function CreatePostUI({
         />
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-white/40 uppercase mb-1 tracking-wider">Image URL (Optional)</label>
-        <input
-          type="url"
-          className="w-full bg-black border border-white/10 rounded-md py-2 px-4 focus:outline-none focus:border-white/20 transition-colors"
-          placeholder="https://example.com/image.jpg"
-          value={formData.image_url}
-          onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-xs font-medium text-white/40 uppercase mb-1 tracking-wider">Image URL (Optional)</label>
+          <input
+            type="url"
+            className="w-full bg-black border border-white/10 rounded-md py-2 px-4 focus:outline-none focus:border-white/20 transition-colors"
+            placeholder="https://example.com/image.jpg"
+            value={formData.image_url}
+            onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-white/40 uppercase mb-1 tracking-wider">Publish Date (Optional)</label>
+          <input
+            type="datetime-local"
+            className="w-full bg-black border border-white/10 rounded-md py-2 px-4 focus:outline-none focus:border-white/20 transition-colors"
+            value={formData.publish_date}
+            onChange={(e) => setFormData({ ...formData, publish_date: e.target.value })}
+          />
+        </div>
       </div>
 
       <div className="pt-6 border-t border-white/10 flex justify-end">

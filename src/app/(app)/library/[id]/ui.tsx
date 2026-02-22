@@ -46,6 +46,23 @@ export default function PostDetailUI({ initialPost, logs, userRole, options }: a
     setLoading(false);
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      return;
+    }
+    setLoading(true);
+    const res = await fetch(`/api/posts/${post.id}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      router.push('/library');
+      router.refresh();
+    } else {
+      alert('Failed to delete post');
+      setLoading(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const colors: any = {
       draft: 'bg-white/20 text-white',
@@ -100,13 +117,24 @@ export default function PostDetailUI({ initialPost, logs, userRole, options }: a
                 </select>
               </div>
             </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-1.5 ml-1">Image URL</label>
-              <input 
-                className="w-full bg-white/5 border border-white/10 rounded-md px-4 py-2 text-sm focus:outline-none"
-                value={post.image_url || ''}
-                onChange={e => setPost({...post, image_url: e.target.value})}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-1.5 ml-1">Image URL</label>
+                <input 
+                  className="w-full bg-white/5 border border-white/10 rounded-md px-4 py-2 text-sm focus:outline-none"
+                  value={post.image_url || ''}
+                  onChange={e => setPost({...post, image_url: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-1.5 ml-1">Publish Date</label>
+                <input 
+                  type="datetime-local"
+                  className="w-full bg-white/5 border border-white/10 rounded-md px-4 py-2 text-sm focus:outline-none"
+                  value={post.publish_date ? new Date(post.publish_date).toISOString().slice(0, 16) : ''}
+                  onChange={e => setPost({...post, publish_date: e.target.value})}
+                />
+              </div>
             </div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setIsEditing(false)} className="px-4 py-2 text-sm text-white/60">Cancel</button>
@@ -148,6 +176,13 @@ export default function PostDetailUI({ initialPost, logs, userRole, options }: a
                 <div className="text-sm font-medium">{post.profiles?.full_name || 'System'}</div>
               </div>
             </div>
+            
+            {post.publish_date && (
+              <div className="bg-white/5 p-3 rounded-md border border-white/5 inline-block">
+                <div className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Publish Date</div>
+                <div className="text-sm font-medium">{new Date(post.publish_date).toLocaleString()}</div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -158,6 +193,14 @@ export default function PostDetailUI({ initialPost, logs, userRole, options }: a
           <h2 className="text-sm font-bold uppercase tracking-widest mb-4">Workflow Actions</h2>
           
           <div className="space-y-3">
+            <button 
+              onClick={handleDelete} 
+              disabled={loading} 
+              className="w-full border border-red-500/50 text-red-500 hover:bg-red-500/10 py-2 rounded-md text-sm font-bold transition-colors"
+            >
+              Delete Post
+            </button>
+            <div className="border-t border-white/10 pt-3"></div>
             {post.status === 'draft' && (
               <button onClick={() => transition('pending')} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-md text-sm font-bold transition-colors">Submit for Review</button>
             )}
