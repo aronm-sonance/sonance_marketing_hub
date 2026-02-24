@@ -66,7 +66,7 @@ export async function POST(
       .select('profile_id, profiles(email)')
       .eq('channel_id', post.channel_id)
       .eq('role', 'approver');
-    approvers?.forEach(a => { if (a.profiles?.email) recipients.push(a.profile_id); });
+    approvers?.forEach((a: any) => { if (a.profiles?.email || a.profiles?.[0]?.email) recipients.push(a.profile_id); });
   } else {
     recipients.push(post.author_id);
   }
