@@ -32,9 +32,73 @@ export async function POST(
     .eq('profile_id', user.id)
     .single();
 
-  // Simple validation logic (can be expanded)
-  const isApprover = membership?.role === 'approver' || membership?.role === 'creator'; 
-  // Normally creator can submit, approver can approve/request changes
+  const isAuthor = post.author_id === user.id;
+  const isApprover = membership?.role === 'approver';
+
+  // Strict transition permissions
+  const currentStatus = post.status;
+  
+  // draft → pending: Only the post author can submit
+  if (currentStatus === 'draft' && to_status === 'pending') {
+    if (!isAuthor) {
+      return NextResponse.json({ error: 'Only the post author can submit for review' }, { status: 403 });
+    }
+  }
+  
+  // pending → approved: Only approvers on the channel (NOT the post author — no self-approval)
+  if (currentStatus === 'pending' && to_status === 'approved') {
+    if (!isApprover) {
+      return NextResponse.json({ error: 'Only channel approvers can approve posts' }, { status: 403 });
+    }
+    if (isAuthor) {
+      return NextResponse.json({ error: 'Authors cannot approve their own posts' }, { status: 403 });
+    }
+  }
+  
+  // pending → changes_requested: Only approvers on the channel
+  if (currentStatus === 'pending' && to_status === 'changes_requested') {
+    if (!isApprover) {
+      return NextResponse.json({ error: 'Only channel approvers can request changes' }, { status: 403 });
+    }
+  }
+  
+  // changes_requested → pending: Only the post author (resubmit)
+  if (currentStatus === 'changes_requested' && to_status === 'pending') {
+    if (!isAuthor) {
+      return NextResponse.json({ error: 'Only the post author can resubmit for review' }, { status: 403 });
+    }
+  }
+  
+  // approved → scheduled: Approvers or author
+  if (currentStatus === 'approved' && to_status === 'scheduled') {
+    if (!isApprover && !isAuthor) {
+      return NextResponse.json({ error: 'Only channel approvers or the post author can schedule posts' }, { status: 403 });
+    }
+  }
+  
+  // approved → published: Only approvers
+  if (currentStatus === 'approved' && to_status === 'published') {
+    if (!isApprover) {
+      return NextResponse.json({ error: 'Only channel approvers can publish posts' }, { status: 403 });
+    }
+  }
+  
+  // scheduled → published: Only approvers
+  if (currentStatus === 'scheduled' && to_status === 'published') {
+    if (!isApprover) {
+      return NextResponse.json({ error: 'Only channel approvers can publish scheduled posts' }, { status: 403 });
+    }
+  }
+  
+  // Any status → draft: Only the post author (retract to draft, only from pending/changes_requested)
+  if (to_status === 'draft') {
+    if (!isAuthor) {
+      return NextResponse.json({ error: 'Only the post author can retract to draft' }, { status: 403 });
+    }
+    if (currentStatus !== 'pending' && currentStatus !== 'changes_requested') {
+      return NextResponse.json({ error: 'Posts can only be retracted to draft from pending or changes_requested status' }, { status: 403 });
+    }
+  }
 
   // 2. Update post status
   const from_status = post.status;

@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function PostDetailUI({ initialPost, logs, userRole, options }: any) {
+export default function PostDetailUI({ initialPost, logs, userRole, userId, options }: any) {
   const router = useRouter();
   const [post, setPost] = useState(initialPost);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [comment, setComment] = useState('');
+  const [error, setError] = useState('');
 
   const handleUpdate = async (e: any) => {
     e.preventDefault();
@@ -28,10 +29,11 @@ export default function PostDetailUI({ initialPost, logs, userRole, options }: a
 
   const transition = async (to_status: string) => {
     if (to_status === 'changes_requested' && !comment) {
-      alert('Please provide a comment when requesting changes.');
+      setError('Please provide a comment when requesting changes.');
       return;
     }
     setLoading(true);
+    setError('');
     const res = await fetch(`/api/posts/${post.id}/transition`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -42,8 +44,11 @@ export default function PostDetailUI({ initialPost, logs, userRole, options }: a
       router.refresh();
       // Simple reload to show new status/logs
       window.location.reload();
+    } else {
+      const data = await res.json();
+      setError(data.error || 'Failed to transition post status');
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDelete = async () => {
@@ -192,6 +197,12 @@ export default function PostDetailUI({ initialPost, logs, userRole, options }: a
         <div className="bg-white/5 border border-white/10 p-6 rounded-md">
           <h2 className="text-sm font-bold uppercase tracking-widest mb-4">Workflow Actions</h2>
           
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-md text-red-400 text-xs">
+              {error}
+            </div>
+          )}
+          
           <div className="space-y-3">
             <button 
               onClick={handleDelete} 
@@ -201,11 +212,14 @@ export default function PostDetailUI({ initialPost, logs, userRole, options }: a
               Delete Post
             </button>
             <div className="border-t border-white/10 pt-3"></div>
-            {post.status === 'draft' && (
+            
+            {/* Draft status: Author can submit for review */}
+            {post.status === 'draft' && post.author_id === userId && (
               <button onClick={() => transition('pending')} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-md text-sm font-bold transition-colors">Submit for Review</button>
             )}
             
-            {(userRole === 'approver' || userRole === 'creator') && post.status === 'pending' && (
+            {/* Pending status: Approvers can approve or request changes (but not author) */}
+            {post.status === 'pending' && userRole === 'approver' && post.author_id !== userId && (
               <>
                 <button onClick={() => transition('approved')} disabled={loading} className="w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded-md text-sm font-bold transition-colors">Approve</button>
                 <div className="pt-2">
@@ -219,13 +233,39 @@ export default function PostDetailUI({ initialPost, logs, userRole, options }: a
                 </div>
               </>
             )}
-
-            {(userRole === 'approver' || userRole === 'creator') && post.status === 'approved' && (
-              <button onClick={() => transition('published')} disabled={loading} className="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded-md text-sm font-bold transition-colors">Publish Now</button>
+            
+            {/* Pending status: Author can retract to draft */}
+            {post.status === 'pending' && post.author_id === userId && (
+              <>
+                <button onClick={() => transition('draft')} disabled={loading} className="w-full border border-white/30 text-white/80 hover:bg-white/10 py-2 rounded-md text-sm font-bold transition-colors">Retract to Draft</button>
+                <div className="text-[10px] text-white/40 mt-2 italic px-2">Waiting for approver review...</div>
+              </>
             )}
 
-            {post.status === 'changes_requested' && (
-              <button onClick={() => transition('pending')} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-md text-sm font-bold transition-colors">Resubmit for Review</button>
+            {/* Approved status: Approvers can publish or schedule */}
+            {post.status === 'approved' && userRole === 'approver' && (
+              <>
+                <button onClick={() => transition('published')} disabled={loading} className="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded-md text-sm font-bold transition-colors">Publish Now</button>
+                <button onClick={() => transition('scheduled')} disabled={loading} className="w-full border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 py-2 rounded-md text-sm font-bold transition-colors">Schedule</button>
+              </>
+            )}
+            
+            {/* Approved status: Author can schedule */}
+            {post.status === 'approved' && post.author_id === userId && userRole !== 'approver' && (
+              <button onClick={() => transition('scheduled')} disabled={loading} className="w-full border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 py-2 rounded-md text-sm font-bold transition-colors">Schedule</button>
+            )}
+
+            {/* Changes Requested: Author can resubmit or retract */}
+            {post.status === 'changes_requested' && post.author_id === userId && (
+              <>
+                <button onClick={() => transition('pending')} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-md text-sm font-bold transition-colors">Resubmit for Review</button>
+                <button onClick={() => transition('draft')} disabled={loading} className="w-full border border-white/30 text-white/80 hover:bg-white/10 py-2 rounded-md text-sm font-bold transition-colors">Retract to Draft</button>
+              </>
+            )}
+            
+            {/* Scheduled: Approvers can publish */}
+            {post.status === 'scheduled' && userRole === 'approver' && (
+              <button onClick={() => transition('published')} disabled={loading} className="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded-md text-sm font-bold transition-colors">Publish Now</button>
             )}
           </div>
         </div>

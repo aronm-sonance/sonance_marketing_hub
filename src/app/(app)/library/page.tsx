@@ -7,6 +7,7 @@ export default async function LibraryPage() {
   // Fetch initial data
   const { data: channels } = await supabase.from('channels').select('id, name').order('name');
   const { data: platforms } = await supabase.from('platforms').select('id, name').order('name');
+  const { data: { user } } = await supabase.auth.getUser();
 
   return (
     <div className="p-8">
@@ -17,7 +18,11 @@ export default async function LibraryPage() {
         </div>
       </div>
       
-      <PostsUI initialChannels={channels || []} initialPlatforms={platforms || []} />
+      <PostsUI 
+        initialChannels={channels || []} 
+        initialPlatforms={platforms || []} 
+        userId={user?.id}
+      />
     </div>
   );
 }

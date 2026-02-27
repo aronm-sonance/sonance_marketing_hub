@@ -6,16 +6,19 @@ import Link from 'next/link';
 interface PostsUIProps {
   initialChannels: any[];
   initialPlatforms: any[];
+  userId?: string;
 }
 
-export default function PostsUI({ initialChannels, initialPlatforms }: PostsUIProps) {
+export default function PostsUI({ initialChannels, initialPlatforms, userId }: PostsUIProps) {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('all');
   const [filters, setFilters] = useState({
     status: '',
     channel_id: '',
     platform_id: '',
-    search: ''
+    search: '',
+    author_id: ''
   });
 
   const fetchPosts = async () => {
@@ -25,6 +28,7 @@ export default function PostsUI({ initialChannels, initialPlatforms }: PostsUIPr
     if (filters.channel_id) params.append('channel_id', filters.channel_id);
     if (filters.platform_id) params.append('platform_id', filters.platform_id);
     if (filters.search) params.append('search', filters.search);
+    if (filters.author_id) params.append('author_id', filters.author_id);
 
     const res = await fetch(`/api/posts?${params.toString()}`);
     const data = await res.json();
@@ -34,7 +38,31 @@ export default function PostsUI({ initialChannels, initialPlatforms }: PostsUIPr
 
   useEffect(() => {
     fetchPosts();
-  }, [filters.status, filters.channel_id, filters.platform_id]);
+  }, [filters.status, filters.channel_id, filters.platform_id, filters.author_id]);
+
+  const handleTabClick = (tab: string) => {
+    setActiveTab(tab);
+    switch (tab) {
+      case 'all':
+        setFilters({ status: '', channel_id: '', platform_id: '', search: '', author_id: '' });
+        break;
+      case 'my-drafts':
+        setFilters({ status: 'draft', channel_id: '', platform_id: '', search: '', author_id: userId || '' });
+        break;
+      case 'pending':
+        setFilters({ status: 'pending', channel_id: '', platform_id: '', search: '', author_id: '' });
+        break;
+      case 'changes':
+        setFilters({ status: 'changes_requested', channel_id: '', platform_id: '', search: '', author_id: '' });
+        break;
+      case 'approved':
+        setFilters({ status: 'approved', channel_id: '', platform_id: '', search: '', author_id: '' });
+        break;
+      case 'published':
+        setFilters({ status: 'published', channel_id: '', platform_id: '', search: '', author_id: '' });
+        break;
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -50,6 +78,70 @@ export default function PostsUI({ initialChannels, initialPlatforms }: PostsUIPr
 
   return (
     <div className="space-y-6">
+      {/* Quick Filter Tabs */}
+      <div className="flex items-center gap-1 border-b border-white/10 pb-4">
+        <button
+          onClick={() => handleTabClick('all')}
+          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+            activeTab === 'all' 
+              ? 'text-white border-b-2 border-white' 
+              : 'text-white/40 hover:text-white/60'
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => handleTabClick('my-drafts')}
+          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+            activeTab === 'my-drafts' 
+              ? 'text-white border-b-2 border-white' 
+              : 'text-white/40 hover:text-white/60'
+          }`}
+        >
+          My Drafts
+        </button>
+        <button
+          onClick={() => handleTabClick('pending')}
+          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+            activeTab === 'pending' 
+              ? 'text-white border-b-2 border-white' 
+              : 'text-white/40 hover:text-white/60'
+          }`}
+        >
+          Pending Review
+        </button>
+        <button
+          onClick={() => handleTabClick('changes')}
+          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+            activeTab === 'changes' 
+              ? 'text-white border-b-2 border-white' 
+              : 'text-white/40 hover:text-white/60'
+          }`}
+        >
+          Needs Changes
+        </button>
+        <button
+          onClick={() => handleTabClick('approved')}
+          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+            activeTab === 'approved' 
+              ? 'text-white border-b-2 border-white' 
+              : 'text-white/40 hover:text-white/60'
+          }`}
+        >
+          Approved
+        </button>
+        <button
+          onClick={() => handleTabClick('published')}
+          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+            activeTab === 'published' 
+              ? 'text-white border-b-2 border-white' 
+              : 'text-white/40 hover:text-white/60'
+          }`}
+        >
+          Published
+        </button>
+      </div>
+
       {/* Filters & Actions */}
       <div className="flex flex-col md:flex-row gap-4 items-end">
         <div className="flex-1 w-full">

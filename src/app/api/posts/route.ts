@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   const channel = searchParams.get('channel_id');
   const platform = searchParams.get('platform_id');
   const search = searchParams.get('search');
+  const authorId = searchParams.get('author_id');
 
   let query = supabase
     .from('posts')
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
   if (channel) query = query.eq('channel_id', channel);
   if (platform) query = query.eq('platform_id', platform);
   if (search) query = query.ilike('title', `%${search}%`);
+  if (authorId) query = query.eq('author_id', authorId);
 
   const { data, error } = await query;
 

@@ -44,6 +44,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
         initialPost={post} 
         logs={logs || []} 
         userRole={membership?.role}
+        userId={user?.id}
         options={{
           channels: channels || [],
           platforms: platforms || [],
