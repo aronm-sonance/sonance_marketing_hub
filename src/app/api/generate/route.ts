@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from '@/lib/ai/prompt-builder';
-import type { Channel, Platform, ContentType, Product } from '@/lib/ai/prompt-builder';
+import { getModelConfig, getDefaultModelConfig, type TaskType } from '@/lib/ai/model-router';
+import type { 
+  Channel, 
+  Platform, 
+  ContentType, 
+  Product,
+  BrandVoice,
+  ChannelPlatformGuideline
+} from '@/lib/ai/prompt-builder';
 import type { DontSayRule } from '@/lib/ai/guardrails';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
@@ -19,7 +27,14 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { channel_id, platform_id, content_type_id, product_id, brief } = body;
+    const { 
+      channel_id, 
+      platform_id, 
+      content_type_id, 
+      product_id, 
+      brief,
+      task_type 
+    } = body;
 
     if (!channel_id || !platform_id || !content_type_id || !brief) {
       return NextResponse.json(
@@ -61,14 +76,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Content type not found' }, { status: 404 });
     }
 
-    // Fetch all active dont_say_rules
-    const { data: dontSayRules, error: rulesError } = await supabase
-      .from('dont_say_rules')
+    // Fetch global brand voice
+    const { data: brandVoice, error: brandVoiceError } = await supabase
+      .from('brand_voice')
+      .select('*')
+      .eq('key', 'sonance-master')
+      .single();
+
+    if (brandVoiceError) {
+      console.warn('No global brand voice found, continuing without it');
+    }
+
+    // Fetch channel-platform guidelines
+    const { data: platformGuideline, error: guidelineError } = await supabase
+      .from('channel_platform_guidelines')
+      .select('*')
+      .eq('channel_id', channel_id)
+      .eq('platform_id', platform_id)
+      .maybeSingle();
+
+    if (guidelineError) {
+      console.warn('Error fetching channel-platform guidelines:', guidelineError);
+    }
+
+    // Fetch all active global_dont_say rules (FIXED table name)
+    const { data: globalDontSay, error: rulesError } = await supabase
+      .from('global_dont_say')
       .select('*')
       .eq('active', true);
 
     if (rulesError) {
-      console.error('Error fetching dont_say_rules:', rulesError);
+      console.error('Error fetching global_dont_say:', rulesError);
       return NextResponse.json({ error: 'Failed to fetch guardrails' }, { status: 500 });
     }
 
@@ -115,18 +153,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build the system prompt
+    // Build the system prompt with ALL voice data
     const systemPrompt = buildSystemPrompt({
       channel: channel as Channel,
       platform: platform as Platform,
       contentType: contentType as ContentType,
-      dontSayRules: (dontSayRules || []) as DontSayRule[],
+      dontSayRules: (globalDontSay || []) as DontSayRule[],
+      brandVoice: brandVoice as BrandVoice | undefined,
+      platformGuideline: platformGuideline as ChannelPlatformGuideline | undefined,
       product,
       brief,
     });
 
-    // Initialize Gemini model
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    // Get model configuration based on task type
+    const modelConfig = task_type 
+      ? getModelConfig(task_type as TaskType)
+      : getDefaultModelConfig();
+
+    // Initialize Gemini model with routing
+    const model = genAI.getGenerativeModel({ 
+      model: modelConfig.model,
+      generationConfig: {
+        temperature: modelConfig.temperature,
+        maxOutputTokens: modelConfig.maxOutputTokens,
+      }
+    });
 
     // Generate content with streaming
     const result = await model.generateContentStream(systemPrompt);

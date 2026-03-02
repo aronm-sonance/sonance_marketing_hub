@@ -17,6 +17,7 @@ const adminItems = [
   { href: "/admin/platforms", label: "Platforms" },
   { href: "/admin/content-types", label: "Content Types" },
   { href: "/admin/dont-say", label: "Don't Say" },
+  { href: "/admin/brand-voice", label: "Brand Voice" },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

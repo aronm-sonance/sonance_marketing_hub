@@ -29,11 +29,13 @@ export interface ValidationResult {
  */
 export function validateContent(
   content: string,
-  rules: DontSayRule[]
+  rules: DontSayRule[],
+  channelDontSay?: string[]
 ): ValidationResult {
   const violations: Violation[] = [];
   const activeRules = rules.filter((r) => r.active);
 
+  // Validate against global dont_say rules
   for (const rule of activeRules) {
     const term = rule.term.trim();
     if (!term) continue;
@@ -76,6 +78,54 @@ export function validateContent(
         });
 
         startIndex = index + 1;
+      }
+    }
+  }
+
+  // Validate against channel-level "we don't say" (treated as warnings)
+  if (channelDontSay && channelDontSay.length > 0) {
+    for (const term of channelDontSay) {
+      const trimmedTerm = term.trim();
+      if (!trimmedTerm) continue;
+
+      const lowerContent = content.toLowerCase();
+      const lowerTerm = trimmedTerm.toLowerCase();
+
+      // Check if term is a single word or phrase
+      const isWord = /^\w+$/.test(trimmedTerm);
+
+      if (isWord) {
+        // Word boundary matching for single words
+        const wordRegex = new RegExp(`\\b${escapeRegex(lowerTerm)}\\b`, 'gi');
+        const matches = content.matchAll(wordRegex);
+        
+        for (const match of matches) {
+          violations.push({
+            rule_id: `channel-dont-say-${trimmedTerm}`,
+            matched_text: match[0],
+            suggestion: undefined,
+            severity: 'warning',
+          });
+        }
+      } else {
+        // Phrase matching - find all occurrences
+        let startIndex = 0;
+        while (true) {
+          const index = lowerContent.indexOf(lowerTerm, startIndex);
+          if (index === -1) break;
+
+          // Extract the actual matched text (preserving original case)
+          const matchedText = content.substring(index, index + trimmedTerm.length);
+          
+          violations.push({
+            rule_id: `channel-dont-say-${trimmedTerm}`,
+            matched_text: matchedText,
+            suggestion: undefined,
+            severity: 'warning',
+          });
+
+          startIndex = index + 1;
+        }
       }
     }
   }
