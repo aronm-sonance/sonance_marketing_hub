@@ -8,6 +8,7 @@ import MobileNav from "./mobile-nav";
 const navItems = [
   { href: "/", label: "Dashboard", icon: "◉" },
   { href: "/library", label: "Content Library", icon: "▤" },
+  { href: "/workshop", label: "Creative Workshop", icon: "◎" },
   { href: "/admin/salsify", label: "Salsify Assets", icon: "◧" },
 ];
 
