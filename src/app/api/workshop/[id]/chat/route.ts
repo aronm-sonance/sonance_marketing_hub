@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getModelConfig } from '@/lib/ai/model-router';
+import { logAiUsage, estimateTokenCount } from '@/lib/ai/usage-logger';
 import type { Channel, BrandVoice } from '@/lib/ai/prompt-builder';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
@@ -129,6 +130,7 @@ export async function POST(
     });
 
     // Generate streaming response
+    const startTime = Date.now();
     const result = await chat.sendMessageStream(message);
 
     // Create readable stream for response
@@ -159,6 +161,21 @@ export async function POST(
             .from('workshop_sessions')
             .update({ updated_at: new Date().toISOString() })
             .eq('id', sessionId);
+
+          // Log AI usage
+          const durationMs = Date.now() - startTime;
+          const inputTokens = estimateTokenCount(systemPrompt + message);
+          const outputTokens = estimateTokenCount(fullResponse);
+
+          logAiUsage({
+            userId: user.id,
+            taskType: 'creative_chat',
+            model: modelConfig.model,
+            tier: modelConfig.tier,
+            inputTokens,
+            outputTokens,
+            durationMs,
+          }).catch(err => console.error('Failed to log AI usage:', err));
 
         } catch (error) {
           console.error('Streaming error:', error);

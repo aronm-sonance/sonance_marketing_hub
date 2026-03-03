@@ -3,6 +3,7 @@ import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getModelConfig } from '@/lib/ai/model-router';
 import { validateContent } from '@/lib/ai/guardrails';
+import { logAiUsage, estimateTokenCount } from '@/lib/ai/usage-logger';
 import type { Channel, BrandVoice } from '@/lib/ai/prompt-builder';
 import type { DontSayRule } from '@/lib/ai/guardrails';
 
@@ -169,9 +170,25 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate voice check analysis
+    const startTime = Date.now();
     const result = await model.generateContent(systemPrompt);
+    const durationMs = Date.now() - startTime;
     const responseText = result.response.text();
     const voiceCheckResult = JSON.parse(responseText);
+
+    // Log AI usage
+    const inputTokens = estimateTokenCount(systemPrompt);
+    const outputTokens = estimateTokenCount(responseText);
+    
+    logAiUsage({
+      userId: user.id,
+      taskType: 'voice_check',
+      model: modelConfig.model,
+      tier: modelConfig.tier,
+      inputTokens,
+      outputTokens,
+      durationMs,
+    }).catch(err => console.error('Failed to log AI usage:', err));
 
     // Merge guardrails violations with AI-detected violations
     const mergedViolations = [

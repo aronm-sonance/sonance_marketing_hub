@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getModelConfig } from '@/lib/ai/model-router';
+import { logAiUsage, estimateTokenCount } from '@/lib/ai/usage-logger';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -138,7 +139,9 @@ export async function POST(request: NextRequest) {
       generateContentRequest.generationConfig.responseModalities = ['image', 'text'];
     }
 
+    const startTime = Date.now();
     const result = await model.generateContent(generateContentRequest);
+    const durationMs = Date.now() - startTime;
 
     // Extract image from response
     const response = result.response;
@@ -166,6 +169,21 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Log AI usage
+    const inputTokens = estimateTokenCount(fullPrompt);
+    // Image output tokens are typically small (just metadata/description)
+    const outputTokens = 100; // Approximate for image generation
+    
+    logAiUsage({
+      userId: user.id,
+      taskType: taskType,
+      model: modelConfig.model,
+      tier: modelConfig.tier,
+      inputTokens,
+      outputTokens,
+      durationMs,
+    }).catch(err => console.error('Failed to log AI usage:', err));
 
     // Return base64 image
     return NextResponse.json({

@@ -3,6 +3,7 @@ import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from '@/lib/ai/prompt-builder';
 import { getModelConfig } from '@/lib/ai/model-router';
+import { logAiUsage, estimateTokenCount } from '@/lib/ai/usage-logger';
 import type { 
   Channel, 
   Platform, 
@@ -133,9 +134,25 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate variations
+    const startTime = Date.now();
     const result = await model.generateContent(variationPrompt);
+    const durationMs = Date.now() - startTime;
     const responseText = result.response.text();
     const variations = JSON.parse(responseText);
+
+    // Log AI usage
+    const inputTokens = estimateTokenCount(variationPrompt);
+    const outputTokens = estimateTokenCount(responseText);
+    
+    logAiUsage({
+      userId: user.id,
+      taskType: 'content_variation',
+      model: modelConfig.model,
+      tier: modelConfig.tier,
+      inputTokens,
+      outputTokens,
+      durationMs,
+    }).catch(err => console.error('Failed to log AI usage:', err));
 
     // Return variations
     return NextResponse.json(variations);

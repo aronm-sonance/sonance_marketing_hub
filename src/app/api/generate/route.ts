@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from '@/lib/ai/prompt-builder';
 import { getModelConfig, getDefaultModelConfig, type TaskType } from '@/lib/ai/model-router';
+import { logAiUsage, estimateTokenCount } from '@/lib/ai/usage-logger';
 import type { 
   Channel, 
   Platform, 
@@ -180,18 +181,40 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate content with streaming
+    const startTime = Date.now();
     const result = await model.generateContentStream(systemPrompt);
 
     // Create a readable stream for the response
     const encoder = new TextEncoder();
+    let fullResponse = '';
+    
     const stream = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of result.stream) {
             const text = chunk.text();
+            fullResponse += text;
             controller.enqueue(encoder.encode(text));
           }
           controller.close();
+
+          // Log AI usage after streaming completes
+          const durationMs = Date.now() - startTime;
+          const inputTokens = estimateTokenCount(systemPrompt);
+          const outputTokens = estimateTokenCount(fullResponse);
+
+          // Fire and forget - don't block the response
+          logAiUsage({
+            userId: user.id,
+            postId: body.post_id,
+            taskType: (task_type as TaskType) || 'social_draft',
+            model: modelConfig.model,
+            tier: modelConfig.tier,
+            inputTokens,
+            outputTokens,
+            durationMs,
+          }).catch(err => console.error('Failed to log AI usage:', err));
+
         } catch (error) {
           console.error('Streaming error:', error);
           controller.error(error);
