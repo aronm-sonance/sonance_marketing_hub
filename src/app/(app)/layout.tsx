@@ -9,6 +9,8 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: "◉" },
   { href: "/library", label: "Content Library", icon: "▤" },
   { href: "/workshop", label: "Creative Workshop", icon: "◎" },
+  { href: "/assets", label: "Asset Library", icon: "◫" },
+  { href: "/generate/image", label: "Image Generator", icon: "◩" },
   { href: "/admin/salsify", label: "Salsify Assets", icon: "◧" },
 ];
 
