@@ -12,6 +12,16 @@ export default function PostDetailUI({ initialPost, logs, userRole, userId, opti
   const [comment, setComment] = useState('');
   const [error, setError] = useState('');
 
+  // Voice Check State
+  const [voiceCheckOpen, setVoiceCheckOpen] = useState(false);
+  const [voiceCheckLoading, setVoiceCheckLoading] = useState(false);
+  const [voiceCheckResult, setVoiceCheckResult] = useState<any>(null);
+
+  // Variations State
+  const [variationsOpen, setVariationsOpen] = useState(false);
+  const [variationsLoading, setVariationsLoading] = useState(false);
+  const [variations, setVariations] = useState<any[]>([]);
+
   const handleUpdate = async (e: any) => {
     e.preventDefault();
     setLoading(true);
@@ -66,6 +76,72 @@ export default function PostDetailUI({ initialPost, logs, userRole, userId, opti
       alert('Failed to delete post');
       setLoading(false);
     }
+  };
+
+  const handleVoiceCheck = async () => {
+    setVoiceCheckLoading(true);
+    setVoiceCheckOpen(true);
+    try {
+      const res = await fetch('/api/generate/voice-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: post.content,
+          channel_id: post.channel_id
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVoiceCheckResult(data);
+      } else {
+        const errorData = await res.json();
+        setError(errorData.error || 'Failed to check brand voice');
+      }
+    } catch (err) {
+      setError('Failed to check brand voice');
+    } finally {
+      setVoiceCheckLoading(false);
+    }
+  };
+
+  const handleGenerateVariations = async () => {
+    setVariationsLoading(true);
+    setVariationsOpen(true);
+    try {
+      const res = await fetch('/api/generate/variations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: post.content,
+          channel_id: post.channel_id,
+          platform_id: post.platform_id,
+          count: 3
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVariations(data.variations || []);
+      } else {
+        const errorData = await res.json();
+        setError(errorData.error || 'Failed to generate variations');
+      }
+    } catch (err) {
+      setError('Failed to generate variations');
+    } finally {
+      setVariationsLoading(false);
+    }
+  };
+
+  const useVariation = (content: string) => {
+    setPost({ ...post, content });
+    setIsEditing(true);
+    setVariationsOpen(false);
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-500';
+    if (score >= 60) return 'text-yellow-500';
+    return 'text-red-500';
   };
 
   const getStatusBadge = (status: string) => {
@@ -162,6 +238,166 @@ export default function PostDetailUI({ initialPost, logs, userRole, userId, opti
             <div className="bg-white/5 border border-white/10 p-6 rounded-md">
               <p className="whitespace-pre-wrap text-white/80 leading-relaxed">{post.content}</p>
             </div>
+
+            {/* AI Actions */}
+            <div className="flex gap-3">
+              <button 
+                onClick={handleVoiceCheck}
+                disabled={voiceCheckLoading}
+                className="flex-1 bg-white/10 hover:bg-white/15 border border-white/20 text-white px-4 py-2.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {voiceCheckLoading ? 'Checking...' : '🎯 Check Brand Voice'}
+              </button>
+              <button 
+                onClick={handleGenerateVariations}
+                disabled={variationsLoading}
+                className="flex-1 bg-white/10 hover:bg-white/15 border border-white/20 text-white px-4 py-2.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {variationsLoading ? 'Generating...' : '✨ Generate Variations'}
+              </button>
+            </div>
+
+            {/* Voice Check Results */}
+            {voiceCheckOpen && (
+              <div className="bg-white/5 border border-white/10 p-6 rounded-md space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold uppercase tracking-widest">Brand Voice Analysis</h3>
+                  <button 
+                    onClick={() => setVoiceCheckOpen(false)}
+                    className="text-white/40 hover:text-white text-xs"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {voiceCheckLoading ? (
+                  <div className="py-8 text-center text-white/60">
+                    <div className="animate-pulse">Analyzing brand voice alignment...</div>
+                  </div>
+                ) : voiceCheckResult ? (
+                  <div className="space-y-4">
+                    {/* Overall Score */}
+                    <div className="text-center py-6 bg-black/40 rounded-md border border-white/5">
+                      <div className={`text-5xl font-bold ${getScoreColor(voiceCheckResult.overall_score)}`}>
+                        {voiceCheckResult.overall_score}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-widest text-white/40 mt-2">Overall Score</div>
+                      <p className="text-sm text-white/70 mt-3 px-4">{voiceCheckResult.alignment_summary}</p>
+                    </div>
+
+                    {/* Attribute Scores */}
+                    {voiceCheckResult.attribute_scores?.length > 0 && (
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-widest text-white/60 mb-3">Attribute Scores</div>
+                        <div className="space-y-3">
+                          {voiceCheckResult.attribute_scores.map((attr: any, idx: number) => (
+                            <div key={idx}>
+                              <div className="flex justify-between items-center mb-1.5">
+                                <span className="text-xs text-white/80">{attr.attribute}</span>
+                                <span className={`text-xs font-bold ${getScoreColor(attr.score)}`}>{attr.score}</span>
+                              </div>
+                              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full ${attr.score >= 80 ? 'bg-green-500' : attr.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                  style={{ width: `${attr.score}%` }}
+                                />
+                              </div>
+                              <p className="text-[10px] text-white/50 mt-1">{attr.feedback}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Violations */}
+                    {voiceCheckResult.violations?.length > 0 && (
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-widest text-red-400 mb-3">⚠️ Violations</div>
+                        <div className="space-y-2">
+                          {voiceCheckResult.violations.map((v: any, idx: number) => (
+                            <div key={idx} className="bg-red-500/10 border border-red-500/20 rounded-md p-3 text-xs">
+                              <div className="text-red-300 font-medium mb-1">"{v.text}"</div>
+                              <div className="text-white/60 mb-1">{v.issue}</div>
+                              <div className="text-green-400">💡 {v.suggestion}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Strengths */}
+                    {voiceCheckResult.strengths?.length > 0 && (
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-widest text-green-400 mb-3">✓ Strengths</div>
+                        <ul className="space-y-1">
+                          {voiceCheckResult.strengths.map((s: string, idx: number) => (
+                            <li key={idx} className="text-xs text-white/70 flex items-start gap-2">
+                              <span className="text-green-400 mt-0.5">•</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Recommendations */}
+                    {voiceCheckResult.recommendations?.length > 0 && (
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-3">💡 Recommendations</div>
+                        <ul className="space-y-1">
+                          {voiceCheckResult.recommendations.map((r: string, idx: number) => (
+                            <li key={idx} className="text-xs text-white/70 flex items-start gap-2">
+                              <span className="text-blue-400 mt-0.5">•</span>
+                              <span>{r}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {/* Variations Results */}
+            {variationsOpen && (
+              <div className="bg-white/5 border border-white/10 p-6 rounded-md space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold uppercase tracking-widest">Content Variations</h3>
+                  <button 
+                    onClick={() => setVariationsOpen(false)}
+                    className="text-white/40 hover:text-white text-xs"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {variationsLoading ? (
+                  <div className="py-8 text-center text-white/60">
+                    <div className="animate-pulse">Generating variations...</div>
+                  </div>
+                ) : variations.length > 0 ? (
+                  <div className="space-y-3">
+                    {variations.map((variation: any, idx: number) => (
+                      <div key={idx} className="bg-black/40 border border-white/5 rounded-md p-4 hover:border-white/10 transition-colors">
+                        <div className="flex justify-between items-start gap-3 mb-3">
+                          <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            {variation.tone_note}
+                          </span>
+                          <button 
+                            onClick={() => useVariation(variation.content)}
+                            className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md font-medium transition-colors"
+                          >
+                            Use This
+                          </button>
+                        </div>
+                        <p className="text-sm text-white/80 whitespace-pre-wrap leading-relaxed">{variation.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white/5 p-3 rounded-md border border-white/5">

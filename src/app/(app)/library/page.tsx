@@ -8,6 +8,13 @@ export default async function LibraryPage() {
   const { data: channels } = await supabase.from('channels').select('id, name').order('name');
   const { data: platforms } = await supabase.from('platforms').select('id, name').order('name');
   const { data: { user } } = await supabase.auth.getUser();
+  
+  // Get user role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user?.id)
+    .single();
 
   return (
     <div className="p-8">
@@ -22,6 +29,7 @@ export default async function LibraryPage() {
         initialChannels={channels || []} 
         initialPlatforms={platforms || []} 
         userId={user?.id}
+        userRole={profile?.role}
       />
     </div>
   );

@@ -2,7 +2,22 @@
 
 import Link from 'next/link';
 
-export default function DashboardUI({ recentPosts, pendingPosts, stats }: any) {
+function timeAgo(date: string) {
+  const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + 'y ago';
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + 'mo ago';
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + 'd ago';
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + 'h ago';
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + 'm ago';
+  return Math.floor(seconds) + 's ago';
+}
+
+export default function DashboardUI({ recentPosts, pendingPosts, myTasks, recentActivity, userId, userRole, stats }: any) {
   const getStatusBadge = (status: string) => {
     const colors: any = {
       draft: 'bg-white/20 text-white',
@@ -28,7 +43,7 @@ export default function DashboardUI({ recentPosts, pendingPosts, stats }: any) {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white/5 border border-white/10 p-6 rounded-md">
           <div className="text-[10px] uppercase tracking-widest text-white/40 mb-2">Total Posts</div>
           <div className="text-3xl font-bold">{stats.total}</div>
@@ -42,6 +57,10 @@ export default function DashboardUI({ recentPosts, pendingPosts, stats }: any) {
           <div className="text-3xl font-bold text-yellow-500">{stats.pending}</div>
         </div>
         <div className="bg-white/5 border border-white/10 p-6 rounded-md">
+          <div className="text-[10px] uppercase tracking-widest text-white/40 mb-2">Changes</div>
+          <div className="text-3xl font-bold text-orange-500">{stats.changes_requested || 0}</div>
+        </div>
+        <div className="bg-white/5 border border-white/10 p-6 rounded-md">
           <div className="text-[10px] uppercase tracking-widest text-white/40 mb-2">Approved</div>
           <div className="text-3xl font-bold text-green-500">{stats.approved}</div>
         </div>
@@ -51,7 +70,101 @@ export default function DashboardUI({ recentPosts, pendingPosts, stats }: any) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* My Tasks */}
+        <div className="bg-white/5 border border-white/10 p-6 rounded-md">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest">My Tasks</h2>
+            <span className="text-xs bg-orange-500/20 text-orange-500 px-2 py-1 rounded">{myTasks?.length || 0}</span>
+          </div>
+          
+          {!myTasks || myTasks.length === 0 ? (
+            <div className="text-center py-8 text-white/40">
+              <div className="text-2xl mb-2">✅</div>
+              <p className="text-sm">All caught up!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {myTasks.map((post: any) => (
+                <Link 
+                  key={post.id} 
+                  href={`/library/${post.id}`}
+                  className="block p-4 bg-black/40 hover:bg-black/60 border border-white/5 hover:border-white/10 rounded-md transition-colors"
+                >
+                  <div className="flex justify-between items-start gap-3 mb-2">
+                    <h3 className="font-medium text-sm line-clamp-1 flex-1">{post.title}</h3>
+                    {getStatusBadge(post.status)}
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-white/40">
+                    <div 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: post.channels?.color || '#888' }}
+                    />
+                    <span>{post.channels?.name}</span>
+                    <span>•</span>
+                    <span>{post.platforms?.name}</span>
+                    <span>•</span>
+                    <span>{timeAgo(post.updated_at || post.created_at)}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-white/5 border border-white/10 p-6 rounded-md">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest">Recent Activity</h2>
+          </div>
+          
+          {!recentActivity || recentActivity.length === 0 ? (
+            <div className="text-center py-8 text-white/40">
+              <p className="text-sm">No recent activity</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentActivity.map((log: any) => (
+                <div key={log.id} className="relative pl-4 border-l-2 border-white/10">
+                  <div 
+                    className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-black"
+                    style={{ 
+                      backgroundColor: 
+                        log.to_status === 'published' ? '#06b6d4' :
+                        log.to_status === 'approved' ? '#22c55e' :
+                        log.to_status === 'pending' ? '#eab308' :
+                        log.to_status === 'changes_requested' ? '#f97316' :
+                        '#888'
+                    }}
+                  />
+                  <div className="pb-3">
+                    <div className="text-xs text-white/80 mb-1">
+                      <span className="font-medium">{log.profiles?.full_name || 'User'}</span>
+                      <span className="text-white/40"> moved </span>
+                      {log.posts?.title && (
+                        <Link 
+                          href={`/library/${log.post_id}`}
+                          className="text-blue-400 hover:underline"
+                        >
+                          {log.posts.title}
+                        </Link>
+                      )}
+                      <span className="text-white/40"> to </span>
+                      <span className="font-medium">{log.to_status.replace('_', ' ')}</span>
+                    </div>
+                    <div className="text-[10px] text-white/30">{timeAgo(log.created_at)}</div>
+                    {log.comment && (
+                      <div className="mt-2 text-[11px] text-white/60 italic">
+                        "{log.comment}"
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Recent Posts */}
         <div className="bg-white/5 border border-white/10 p-6 rounded-md">
           <div className="flex justify-between items-center mb-6">
@@ -75,48 +188,19 @@ export default function DashboardUI({ recentPosts, pendingPosts, stats }: any) {
                   className="block p-4 bg-black/40 hover:bg-black/60 border border-white/5 hover:border-white/10 rounded-md transition-colors"
                 >
                   <div className="flex justify-between items-start gap-3 mb-2">
-                    <h3 className="font-medium text-sm line-clamp-1">{post.title}</h3>
+                    <h3 className="font-medium text-sm line-clamp-1 flex-1">{post.title}</h3>
                     {getStatusBadge(post.status)}
                   </div>
-                  <div className="flex gap-4 text-[10px] text-white/40">
+                  <div className="flex items-center gap-2 text-[10px] text-white/40">
+                    <div 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: post.channels?.color || '#888' }}
+                    />
                     <span>{post.channels?.name}</span>
                     <span>•</span>
                     <span>{post.platforms?.name}</span>
                     <span>•</span>
-                    <span>{new Date(post.created_at).toLocaleDateString()}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Pending Approval */}
-        <div className="bg-white/5 border border-white/10 p-6 rounded-md">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-sm font-bold uppercase tracking-widest">Pending Approval</h2>
-            <span className="text-xs bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded">{pendingPosts.length}</span>
-          </div>
-          
-          {pendingPosts.length === 0 ? (
-            <div className="text-center py-8 text-white/40">
-              <p className="text-sm">No posts pending approval</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pendingPosts.map((post: any) => (
-                <Link 
-                  key={post.id} 
-                  href={`/library/${post.id}`}
-                  className="block p-4 bg-black/40 hover:bg-black/60 border border-yellow-500/20 hover:border-yellow-500/40 rounded-md transition-colors"
-                >
-                  <h3 className="font-medium text-sm line-clamp-1 mb-2">{post.title}</h3>
-                  <div className="flex gap-4 text-[10px] text-white/40">
-                    <span>{post.channels?.name}</span>
-                    <span>•</span>
-                    <span>{post.platforms?.name}</span>
-                    <span>•</span>
-                    <span>{post.profiles?.full_name}</span>
+                    <span>{timeAgo(post.created_at)}</span>
                   </div>
                 </Link>
               ))}

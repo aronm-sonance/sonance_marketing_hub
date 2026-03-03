@@ -13,7 +13,7 @@ export default function NotificationBell() {
   );
 
   const fetchNotifications = async () => {
-    const res = await fetch('/api/notifications');
+    const res = await fetch('/api/notifications?limit=20');
     const data = await res.json();
     if (Array.isArray(data)) setNotifications(data);
   };
@@ -47,6 +47,18 @@ export default function NotificationBell() {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
+  const markAllAsRead = async () => {
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    for (const id of unreadIds) {
+      await fetch(`/api/notifications/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ read: true }),
+      });
+    }
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
   return (
     <div className="relative">
       <button 
@@ -64,40 +76,69 @@ export default function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-black border border-white/10 rounded-md shadow-2xl z-50">
+        <div className="absolute right-0 mt-2 w-80 max-h-[32rem] flex flex-col bg-black border border-white/10 rounded-md shadow-2xl z-50">
           <div className="p-3 border-b border-white/10 flex justify-between items-center">
             <span className="font-semibold text-sm">Notifications</span>
-            <button onClick={() => setIsOpen(false)} className="text-white/40 hover:text-white text-xs">Close</button>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button 
+                  onClick={markAllAsRead}
+                  className="text-[10px] text-blue-400 hover:text-blue-300 font-medium"
+                >
+                  Mark all read
+                </button>
+              )}
+              <button onClick={() => setIsOpen(false)} className="text-white/40 hover:text-white text-xs">✕</button>
+            </div>
           </div>
-          {notifications.length === 0 ? (
-            <div className="p-4 text-center text-white/40 text-sm">No notifications</div>
-          ) : (
-            notifications.map(n => (
-              <div 
-                key={n.id} 
-                className={`p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors ${!n.read ? 'bg-white/[0.02]' : ''}`}
-                onClick={() => markAsRead(n.id)}
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <span className={`text-sm font-medium ${!n.read ? 'text-white' : 'text-white/80'}`}>{n.title}</span>
-                  {!n.read && <span className="h-2 w-2 rounded-full bg-blue-500"></span>}
-                </div>
-                <p className="text-xs text-white/60 mb-2">{n.body}</p>
-                {n.post_id && (
-                  <Link 
-                    href={`/library/${n.post_id}`}
-                    className="text-[10px] text-blue-400 hover:underline"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    View Post
-                  </Link>
-                )}
-                <div className="text-[10px] text-white/30 mt-1">
-                  {new Date(n.created_at).toLocaleString()}
-                </div>
+          <div className="overflow-y-auto flex-1">
+            {notifications.length === 0 ? (
+              <div className="p-8 text-center text-white/40 text-sm">
+                <div className="text-2xl mb-2">🔔</div>
+                <div>No notifications</div>
               </div>
-            ))
-          )}
+            ) : (
+              notifications.map(n => (
+                <div 
+                  key={n.id} 
+                  className={`p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer ${!n.read ? 'bg-white/[0.02]' : ''}`}
+                  onClick={() => markAsRead(n.id)}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className={`text-sm font-medium flex-1 ${!n.read ? 'text-white' : 'text-white/80'}`}>{n.title}</span>
+                    {!n.read && <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-1"></span>}
+                  </div>
+                  <p className="text-xs text-white/60 mb-2">{n.body}</p>
+                  <div className="flex justify-between items-center">
+                    {n.post_id && (
+                      <Link 
+                        href={`/library/${n.post_id}`}
+                        className="text-[10px] text-blue-400 hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsOpen(false);
+                        }}
+                      >
+                        View Post →
+                      </Link>
+                    )}
+                    <div className="text-[10px] text-white/30">
+                      {(() => {
+                        const diff = Date.now() - new Date(n.created_at).getTime();
+                        const minutes = Math.floor(diff / 60000);
+                        const hours = Math.floor(diff / 3600000);
+                        const days = Math.floor(diff / 86400000);
+                        if (days > 0) return `${days}d ago`;
+                        if (hours > 0) return `${hours}h ago`;
+                        if (minutes > 0) return `${minutes}m ago`;
+                        return 'just now';
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

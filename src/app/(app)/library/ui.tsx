@@ -7,9 +7,25 @@ interface PostsUIProps {
   initialChannels: any[];
   initialPlatforms: any[];
   userId?: string;
+  userRole?: string;
 }
 
-export default function PostsUI({ initialChannels, initialPlatforms, userId }: PostsUIProps) {
+function timeAgo(date: string) {
+  const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + 'y ago';
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + 'mo ago';
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + 'd ago';
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + 'h ago';
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + 'm ago';
+  return Math.floor(seconds) + 's ago';
+}
+
+export default function PostsUI({ initialChannels, initialPlatforms, userId, userRole }: PostsUIProps) {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -200,37 +216,76 @@ export default function PostsUI({ initialChannels, initialPlatforms, userId }: P
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {posts.map((post) => (
-            <Link 
+            <div 
               key={post.id} 
-              href={`/library/${post.id}`}
-              className="group bg-white/5 border border-white/10 rounded-md overflow-hidden hover:border-white/20 transition-all"
+              className="group relative bg-white/5 border border-white/10 rounded-md overflow-hidden hover:border-white/20 transition-all"
             >
-              {post.image_url ? (
-                <div className="aspect-video w-full bg-black relative">
-                  <img src={post.image_url} alt={post.title} className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
+              <Link href={`/library/${post.id}`}>
+                {post.image_url ? (
+                  <div className="aspect-video w-full bg-black relative">
+                    <img src={post.image_url} alt={post.title} className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                ) : (
+                  <div className="aspect-video w-full bg-white/5 flex items-center justify-center text-white/10 font-bold text-2xl italic">
+                    NO IMAGE
+                  </div>
+                )}
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${getStatusColor(post.status)}`}>
+                      {post.status.replace('_', ' ')}
+                    </span>
+                    <span className="text-[10px] text-white/40 uppercase tracking-widest">
+                      {post.platforms?.name}
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-lg mb-1 group-hover:text-blue-400 transition-colors line-clamp-1">{post.title}</h3>
+                  <p className="text-white/60 text-xs line-clamp-2 mb-4 h-8">{post.content}</p>
+                  <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-2 h-2 rounded-full" 
+                        style={{ backgroundColor: post.channels?.color || '#888' }}
+                      />
+                      <span className="text-[10px] text-white/40 uppercase tracking-widest">{post.channels?.name}</span>
+                    </div>
+                    <span className="text-[10px] text-white/30">{timeAgo(post.updated_at || post.created_at)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
+                    <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px]">
+                      {(post.profiles?.full_name || 'U')[0]}
+                    </div>
+                    <span className="text-[10px] text-white/40">{post.profiles?.full_name || 'Unknown'}</span>
+                  </div>
                 </div>
-              ) : (
-                <div className="aspect-video w-full bg-white/5 flex items-center justify-center text-white/10 font-bold text-2xl italic">
-                  NO IMAGE
-                </div>
-              )}
-              <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${getStatusColor(post.status)}`}>
-                    {post.status.replace('_', ' ')}
-                  </span>
-                  <span className="text-[10px] text-white/40 uppercase tracking-widest">
-                    {post.platforms?.name}
-                  </span>
-                </div>
-                <h3 className="font-semibold text-lg mb-1 group-hover:text-blue-400 transition-colors line-clamp-1">{post.title}</h3>
-                <p className="text-white/60 text-xs line-clamp-2 mb-4 h-8">{post.content}</p>
-                <div className="flex justify-between items-center pt-4 border-t border-white/5 text-[10px] text-white/40 uppercase tracking-widest">
-                  <span>{post.channels?.name}</span>
-                  <span>{new Date(post.created_at).toLocaleDateString()}</span>
-                </div>
+              </Link>
+
+              {/* Quick Actions - Show on hover */}
+              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                <Link 
+                  href={`/library/${post.id}`}
+                  className="bg-black/80 hover:bg-black text-white px-3 py-1.5 rounded-md text-xs font-medium backdrop-blur-sm"
+                >
+                  View
+                </Link>
+                {post.author_id === userId && (
+                  <Link 
+                    href={`/library/${post.id}?edit=true`}
+                    className="bg-blue-500/80 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium backdrop-blur-sm"
+                  >
+                    Edit
+                  </Link>
+                )}
+                {userRole === 'approver' && post.status === 'pending' && post.author_id !== userId && (
+                  <Link 
+                    href={`/library/${post.id}?action=approve`}
+                    className="bg-green-500/80 hover:bg-green-500 text-white px-3 py-1.5 rounded-md text-xs font-medium backdrop-blur-sm"
+                  >
+                    Approve
+                  </Link>
+                )}
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
